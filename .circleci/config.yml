@@ -9,16 +9,22 @@ jobs:
       - run:
           name: Build application Docker image
           command: |
-            TAG=0.1.$CIRCLE_BUILD_NUM
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              TAG=1.1.$CIRCLE_BUILD_NUM
+            else
+              TAG=0.1.$CIRCLE_BUILD_NUM
+            fi
             docker build -t "repo.treescale.com/snahelou22/frontend:${TAG}" .
       - deploy:
           name: Push application Docker image
           command: |
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              TAG=1.1.$CIRCLE_BUILD_NUM
+            else
               TAG=0.1.$CIRCLE_BUILD_NUM
-              docker login -u "${DOCKER_USER}" -p "${DOCKER_PASS}" repo.treescale.com/snahelou22/frontend
-              docker push "repo.treescale.com/snahelou22/frontend:${TAG}"
             fi
+            docker login -u "${DOCKER_USER}" -p "${DOCKER_PASS}" repo.treescale.com/snahelou22/frontend
+            docker push "repo.treescale.com/snahelou22/frontend:${TAG}"
       - deploy:
           name: Deploy app to Kubernetes using Weave FLux
           command: |
@@ -29,11 +35,13 @@ jobs:
             git config user.name "CircleCI"
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               OPS_BRANCH=master
+              TAG=1.1.$CIRCLE_BUILD_NUM
             else
               OPS_BRANCH=develop
+              TAG=0.1.$CIRCLE_BUILD_NUM
             fi
             git checkout "${OPS_BRANCH}"
-            sed -i "s/image: repo.treescale.com\/snahelou22\/frontend:.*$/image: repo.treescale.com\/snahelou22\/frontend:0.1.${CIRCLE_BUILD_NUM}/g" front-deployment.yaml
+            sed -i "s/image: repo.treescale.com\/snahelou22\/frontend:.*$/image: repo.treescale.com\/snahelou22\/frontend:${TAG}/g" front-deployment.yaml
             git add .
             git commit -m "Update via CircleCI"
             git push -q "https://${GITHUB_PERSONAL_TOKEN}@github.com/snahelou/demo-gitops.git" "${OPS_BRANCH}"
